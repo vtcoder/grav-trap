@@ -1,15 +1,25 @@
 ﻿class Game {
     private _canvas: HTMLCanvasElement;
     private _ctx: CanvasRenderingContext2D;
+    private _bgStartingX: number;
+    private _bgStartingY: number;
 
     public constructor(canvas: HTMLCanvasElement) {
         this._canvas = canvas;
         this._ctx = this._canvas.getContext("2d");
+        this._bgStartingX = this._canvas.width + 10;
+        this._bgStartingY = 0;
     }
 
     public start(canvas: HTMLCanvasElement): void {
-        let o: Obstacle = new WallObstacle(this._ctx, 5, 5);
+        let o: Obstacle = new WallObstacle(this._ctx, this._bgStartingX, this._bgStartingY);
         o.render();
+
+        setInterval(() => {
+            this._ctx.clearRect(0, 0, this._canvas.width, this._canvas.height);
+            o.bgMove();
+            o.render();
+        }, 50);
     }
 }
 
@@ -31,7 +41,7 @@ abstract class RenderableItem {
     public abstract render();
 
     public bgMove() {
-        this._x -= 1;
+        this._x -= 10;
     }
 }
 

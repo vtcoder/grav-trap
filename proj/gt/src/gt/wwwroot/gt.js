@@ -7,10 +7,18 @@ var Game = (function () {
     function Game(canvas) {
         this._canvas = canvas;
         this._ctx = this._canvas.getContext("2d");
+        this._bgStartingX = this._canvas.width + 10;
+        this._bgStartingY = 0;
     }
     Game.prototype.start = function (canvas) {
-        var o = new WallObstacle(this._ctx, 5, 5);
+        var _this = this;
+        var o = new WallObstacle(this._ctx, this._bgStartingX, this._bgStartingY);
         o.render();
+        setInterval(function () {
+            _this._ctx.clearRect(0, 0, _this._canvas.width, _this._canvas.height);
+            o.bgMove();
+            o.render();
+        }, 50);
     };
     return Game;
 }());
@@ -22,6 +30,9 @@ var RenderableItem = (function () {
         this._w = w;
         this._h = h;
     }
+    RenderableItem.prototype.bgMove = function () {
+        this._x -= 10;
+    };
     return RenderableItem;
 }());
 var Obstacle = (function (_super) {
@@ -37,11 +48,12 @@ var WallObstacle = (function (_super) {
         _super.call(this, ctx, x, y, WallObstacle.WALL_WIDTH, WallObstacle.WALL_HEIGHT);
     }
     WallObstacle.prototype.render = function () {
-        this._ctx.fillStyle = "yellow";
+        this._ctx.fillStyle = WallObstacle.WALL_COLOR;
         this._ctx.fillRect(this._x, this._y, this._w, this._h);
     };
     WallObstacle.WALL_WIDTH = 50;
     WallObstacle.WALL_HEIGHT = 200;
+    WallObstacle.WALL_COLOR = "yellow";
     return WallObstacle;
 }(Obstacle));
 
