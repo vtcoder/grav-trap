@@ -1,20 +1,22 @@
 ﻿class Game {
     private static PIXELS_PER_MOVE: number = 10;
     private static MILLISEC_PER_MOVE: number = 50;
+    private static MILLISEC_GAME_TIMEOUT: number = 50;
 
     private _canvas: HTMLCanvasElement;
     private _ctx: CanvasRenderingContext2D;
+    private _timerId: any;
     private _currentTimeUnit: number;
+    private _player: Player;
+    private _obstacles: Array<Obstacle>;
 
     public constructor(canvas: HTMLCanvasElement) {
         this._canvas = canvas;
         this._ctx = this._canvas.getContext("2d");
         this._currentTimeUnit = 0;
-    }
-
-    public start(): void {
+        this._player = new Player(this._ctx, Game.PIXELS_PER_MOVE);
         //TODO move the array of obstacles to a 'Level' object, or something to capture a given layout of obstacles. It could also have a bg image for each level etc.
-        let obstacles: Array<Obstacle> = [
+        this._obstacles = [
             new WallObstacleLg(this._ctx, Game.PIXELS_PER_MOVE, 1, true),
             new WallObstacleSm(this._ctx, Game.PIXELS_PER_MOVE, 20, true),
             new WallObstacleSm(this._ctx, Game.PIXELS_PER_MOVE, 100, true),
@@ -24,41 +26,64 @@
             new WallObstacleSm(this._ctx, Game.PIXELS_PER_MOVE, 100, false),
             new WallObstacleLg(this._ctx, Game.PIXELS_PER_MOVE, 120, false)
         ];
-        let player: Player = new Player(this._ctx, Game.PIXELS_PER_MOVE);
 
-        window.addEventListener("keydown", (evt) => {
-            if (evt.keyCode == 38) {
-                player.startJump();
-            }
-        }, true);
+        window.addEventListener("keydown", (evt) => this.handleKeyDown(evt), true);
+        window.addEventListener("keyup", (evt) => this.handleKeyUp(evt), true);
+    }
 
-        window.addEventListener("keyup", (evt) => {
-            if (evt.keyCode == 38) {
-                player.endJump();
-            }
-        }, true);
+    protected handleKeyDown(evt): void {
+        if (evt.keyCode == 38) {
+            this._player.startJump();
+        }
+    }
 
-        //Perform initial renderings (before we start moving the screen).
-        player.render();
+    protected handleKeyUp(evt): void {
+        if (evt.keyCode == 38) {
+            this._player.endJump();
+        }
+    }
 
-        setInterval(() => {
-            //Clear screen.
-            this._ctx.clearRect(0, 0, this._canvas.width, this._canvas.height);
+    protected handleTimeUnitElapse(): void {
+        //Clear screen.
+        this._ctx.clearRect(0, 0, this._canvas.width, this._canvas.height);
 
-            //Render all obstacles.
-            for (let o of obstacles) {
-                if (o.isStarted || o.order <= this._currentTimeUnit) {
-                    o.moveObstacle();
-                    o.render();
+        //Render player.
+        this._player.render();
+
+        //Render all obstacles.
+        for (let o of this._obstacles) {
+            if (o.isStarted || o.order <= this._currentTimeUnit) {
+                //Render obstacle.
+                o.moveObstacle();
+                o.render();
+
+                //Evaluate if player has hit an obstacle.
+                if (this._player.isTouchingObstacle(o)) {
+                    this._player.hasHitObstacle = true;
                 }
             }
+        }
 
-            //Render player.
-            player.render();
+        //Check to see if the player hit an obstacle.
+        if (this._player.hasHitObstacle) {
+            this.stop();
+            alert('Game Over');
+        }
+        
+        //Increment current time unit.
+        this._currentTimeUnit++;
+    }
 
-            //Increment current time unit.
-            this._currentTimeUnit++;
-        }, Game.MILLISEC_PER_MOVE);
+    public start(): void {
+        //Perform initial renderings (before we start moving the screen).
+        this._player.render();
+
+        //Set up the timer and handler. Note I had to wrap the call to handleTimeUnitElapse in an anonymous function, otherwise references to this._blah were invalid inside that method.
+        this._timerId = setInterval(() => this.handleTimeUnitElapse(), Game.MILLISEC_PER_MOVE);
+    }
+
+    public stop(): void {
+        clearInterval(this._timerId);
     }
 }
 
@@ -79,6 +104,13 @@ abstract class RenderableItem {
         this._pixelsPerMove = pixelsPerMove;
     }
 
+    public get X_Left(): number { return this._x; }
+    public get X_Right(): number { return this._x + this._w; }
+    public get Y_Top(): number { return this._y; }
+    public get Y_Bottom(): number { return this._y + this._h; }
+    public get W(): number { return this._w; }
+    public get H(): number { return this._h; }
+
     public abstract render();
 }
 
@@ -91,6 +123,7 @@ class Player extends RenderableItem {
 
     private _normalY: number;
     private _isJumping: boolean;
+    private _hasHitObstacle: boolean;
 
     public constructor(ctx: CanvasRenderingContext2D, pixelsPerMove: number) {
         //Calculate starting X,Y coordinates. All players start visible, toward the left bottom of the screen.
@@ -100,6 +133,14 @@ class Player extends RenderableItem {
 
         this._normalY = y;
         this._isJumping = false;
+    }
+
+    public get hasHitObstacle(): boolean {
+        return this._hasHitObstacle;
+    }
+
+    public set hasHitObstacle(value: boolean) {
+        this._hasHitObstacle = value;
     }
 
     public render(): void {
@@ -122,6 +163,20 @@ class Player extends RenderableItem {
 
     public endJump(): void {
         this._isJumping = false;
+    }
+
+    public isTouchingObstacle(obstacle: Obstacle): boolean {
+        let isTouching: boolean = false;
+
+        if (this.X_Right > obstacle.X_Left && this.X_Right < obstacle.X_Right) {
+            if (this.Y_Top > obstacle.Y_Top && this.Y_Top < obstacle.Y_Bottom) {
+                isTouching = true;
+            } else if (this.Y_Bottom > obstacle.Y_Top && this.Y_Bottom < obstacle.Y_Bottom) {
+                isTouching = true;
+            }
+        }
+
+        return isTouching;
     }
 }
 

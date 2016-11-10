@@ -5,14 +5,13 @@ var __extends = (this && this.__extends) || function (d, b) {
 };
 var Game = (function () {
     function Game(canvas) {
+        var _this = this;
         this._canvas = canvas;
         this._ctx = this._canvas.getContext("2d");
         this._currentTimeUnit = 0;
-    }
-    Game.prototype.start = function () {
-        var _this = this;
+        this._player = new Player(this._ctx, Game.PIXELS_PER_MOVE);
         //TODO move the array of obstacles to a 'Level' object, or something to capture a given layout of obstacles. It could also have a bg image for each level etc.
-        var obstacles = [
+        this._obstacles = [
             new WallObstacleLg(this._ctx, Game.PIXELS_PER_MOVE, 1, true),
             new WallObstacleSm(this._ctx, Game.PIXELS_PER_MOVE, 20, true),
             new WallObstacleSm(this._ctx, Game.PIXELS_PER_MOVE, 100, true),
@@ -22,38 +21,58 @@ var Game = (function () {
             new WallObstacleSm(this._ctx, Game.PIXELS_PER_MOVE, 100, false),
             new WallObstacleLg(this._ctx, Game.PIXELS_PER_MOVE, 120, false)
         ];
-        var player = new Player(this._ctx, Game.PIXELS_PER_MOVE);
-        window.addEventListener("keydown", function (evt) {
-            if (evt.keyCode == 38) {
-                player.startJump();
-            }
-        }, true);
-        window.addEventListener("keyup", function (evt) {
-            if (evt.keyCode == 38) {
-                player.endJump();
-            }
-        }, true);
-        //Perform initial renderings (before we start moving the screen).
-        player.render();
-        setInterval(function () {
-            //Clear screen.
-            _this._ctx.clearRect(0, 0, _this._canvas.width, _this._canvas.height);
-            //Render all obstacles.
-            for (var _i = 0, obstacles_1 = obstacles; _i < obstacles_1.length; _i++) {
-                var o = obstacles_1[_i];
-                if (o.isStarted || o.order <= _this._currentTimeUnit) {
-                    o.moveObstacle();
-                    o.render();
+        window.addEventListener("keydown", function (evt) { return _this.handleKeyDown(evt); }, true);
+        window.addEventListener("keyup", function (evt) { return _this.handleKeyUp(evt); }, true);
+    }
+    Game.prototype.handleKeyDown = function (evt) {
+        if (evt.keyCode == 38) {
+            this._player.startJump();
+        }
+    };
+    Game.prototype.handleKeyUp = function (evt) {
+        if (evt.keyCode == 38) {
+            this._player.endJump();
+        }
+    };
+    Game.prototype.handleTimeUnitElapse = function () {
+        //Clear screen.
+        this._ctx.clearRect(0, 0, this._canvas.width, this._canvas.height);
+        //Render player.
+        this._player.render();
+        //Render all obstacles.
+        for (var _i = 0, _a = this._obstacles; _i < _a.length; _i++) {
+            var o = _a[_i];
+            if (o.isStarted || o.order <= this._currentTimeUnit) {
+                //Render obstacle.
+                o.moveObstacle();
+                o.render();
+                //Evaluate if player has hit an obstacle.
+                if (this._player.isTouchingObstacle(o)) {
+                    this._player.hasHitObstacle = true;
                 }
             }
-            //Render player.
-            player.render();
-            //Increment current time unit.
-            _this._currentTimeUnit++;
-        }, Game.MILLISEC_PER_MOVE);
+        }
+        //Check to see if the player hit an obstacle.
+        if (this._player.hasHitObstacle) {
+            this.stop();
+            alert('Game Over');
+        }
+        //Increment current time unit.
+        this._currentTimeUnit++;
+    };
+    Game.prototype.start = function () {
+        var _this = this;
+        //Perform initial renderings (before we start moving the screen).
+        this._player.render();
+        //Set up the timer and handler. Note I had to wrap the call to handleTimeUnitElapse in an anonymous function, otherwise references to this._blah were invalid inside that method.
+        this._timerId = setInterval(function () { return _this.handleTimeUnitElapse(); }, Game.MILLISEC_PER_MOVE);
+    };
+    Game.prototype.stop = function () {
+        clearInterval(this._timerId);
     };
     Game.PIXELS_PER_MOVE = 10;
     Game.MILLISEC_PER_MOVE = 50;
+    Game.MILLISEC_GAME_TIMEOUT = 50;
     return Game;
 }());
 var RenderableItem = (function () {
@@ -65,6 +84,36 @@ var RenderableItem = (function () {
         this._h = h;
         this._pixelsPerMove = pixelsPerMove;
     }
+    Object.defineProperty(RenderableItem.prototype, "X_Left", {
+        get: function () { return this._x; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(RenderableItem.prototype, "X_Right", {
+        get: function () { return this._x + this._w; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(RenderableItem.prototype, "Y_Top", {
+        get: function () { return this._y; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(RenderableItem.prototype, "Y_Bottom", {
+        get: function () { return this._y + this._h; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(RenderableItem.prototype, "W", {
+        get: function () { return this._w; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(RenderableItem.prototype, "H", {
+        get: function () { return this._h; },
+        enumerable: true,
+        configurable: true
+    });
     return RenderableItem;
 }());
 var Player = (function (_super) {
@@ -76,6 +125,16 @@ var Player = (function (_super) {
         this._normalY = y;
         this._isJumping = false;
     }
+    Object.defineProperty(Player.prototype, "hasHitObstacle", {
+        get: function () {
+            return this._hasHitObstacle;
+        },
+        set: function (value) {
+            this._hasHitObstacle = value;
+        },
+        enumerable: true,
+        configurable: true
+    });
     Player.prototype.render = function () {
         //Check for jump status.
         if (this._isJumping) {
@@ -94,6 +153,18 @@ var Player = (function (_super) {
     };
     Player.prototype.endJump = function () {
         this._isJumping = false;
+    };
+    Player.prototype.isTouchingObstacle = function (obstacle) {
+        var isTouching = false;
+        if (this.X_Right > obstacle.X_Left && this.X_Right < obstacle.X_Right) {
+            if (this.Y_Top > obstacle.Y_Top && this.Y_Top < obstacle.Y_Bottom) {
+                isTouching = true;
+            }
+            else if (this.Y_Bottom > obstacle.Y_Top && this.Y_Bottom < obstacle.Y_Bottom) {
+                isTouching = true;
+            }
+        }
+        return isTouching;
     };
     Player.PLAYER_X_COORD = 100;
     Player.PLAYER_Y_COORD_OFFSET = 2;
