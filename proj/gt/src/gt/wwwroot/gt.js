@@ -19,7 +19,8 @@ var Game = (function () {
             new WallObstacleLg(this._ctx, Game.PIXELS_PER_MOVE, 25, false),
             new WallObstacleMd(this._ctx, Game.PIXELS_PER_MOVE, 50, false),
             new WallObstacleSm(this._ctx, Game.PIXELS_PER_MOVE, 100, false),
-            new WallObstacleLg(this._ctx, Game.PIXELS_PER_MOVE, 120, false)
+            new WallObstacleLg(this._ctx, Game.PIXELS_PER_MOVE, 120, false),
+            new Goal(this._ctx, Game.PIXELS_PER_MOVE, 225, false)
         ];
         window.addEventListener("keydown", function (evt) { return _this.handleKeyDown(evt); }, true);
         window.addEventListener("keyup", function (evt) { return _this.handleKeyUp(evt); }, true);
@@ -46,9 +47,17 @@ var Game = (function () {
                 //Render obstacle.
                 o.moveObstacle();
                 o.render();
-                //Evaluate if player has hit an obstacle.
-                if (this._player.isTouchingObstacle(o)) {
-                    this._player.hasHitObstacle = true;
+                if (o instanceof Goal) {
+                    //Evaluate if player has reached the end goal.
+                    if (this._player.hasPassedObstacle(o)) {
+                        this._player.hasReachedGoal = true;
+                    }
+                }
+                else {
+                    //Evaluate if player has hit an obstacle.
+                    if (this._player.isTouchingObstacle(o)) {
+                        this._player.hasHitObstacle = true;
+                    }
                 }
             }
         }
@@ -56,6 +65,11 @@ var Game = (function () {
         if (this._player.hasHitObstacle) {
             this.stop();
             alert('Game Over');
+        }
+        //Check to see if the player has reached the goal.
+        if (this._player.hasReachedGoal) {
+            this.stop();
+            alert('Level complete!');
         }
         //Increment current time unit.
         this._currentTimeUnit++;
@@ -135,6 +149,16 @@ var Player = (function (_super) {
         enumerable: true,
         configurable: true
     });
+    Object.defineProperty(Player.prototype, "hasReachedGoal", {
+        get: function () {
+            return this._hasReachedGoal;
+        },
+        set: function (value) {
+            this._hasReachedGoal = value;
+        },
+        enumerable: true,
+        configurable: true
+    });
     Player.prototype.render = function () {
         //Check for jump status.
         if (this._isJumping) {
@@ -165,6 +189,13 @@ var Player = (function (_super) {
             }
         }
         return isTouching;
+    };
+    Player.prototype.hasPassedObstacle = function (obstacle) {
+        var hasPassed = false;
+        if (this.X_Right >= obstacle.X_Left) {
+            hasPassed = true;
+        }
+        return hasPassed;
     };
     Player.PLAYER_X_COORD = 100;
     Player.PLAYER_Y_COORD_OFFSET = 2;
@@ -264,5 +295,19 @@ var WallObstacleSm = (function (_super) {
     WallObstacleSm.WALL_COLOR = "orange";
     return WallObstacleSm;
 }(WallObstacle));
+var Goal = (function (_super) {
+    __extends(Goal, _super);
+    function Goal(ctx, pixelsPerMove, order, isTop) {
+        _super.call(this, ctx, pixelsPerMove, Goal.GOAL_WIDTH, Goal.GOAL_HEIGHT, order, isTop);
+    }
+    Goal.prototype.render = function () {
+        this._ctx.fillStyle = Goal.GOAL_COLOR;
+        this._ctx.fillRect(this._x, this._y, this._w, this._h);
+    };
+    Goal.GOAL_WIDTH = 50;
+    Goal.GOAL_HEIGHT = 100;
+    Goal.GOAL_COLOR = "green";
+    return Goal;
+}(Obstacle));
 
 //# sourceMappingURL=gt.js.map

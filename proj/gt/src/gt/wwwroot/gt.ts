@@ -24,7 +24,8 @@
             new WallObstacleLg(this._ctx, Game.PIXELS_PER_MOVE, 25, false),
             new WallObstacleMd(this._ctx, Game.PIXELS_PER_MOVE, 50, false),
             new WallObstacleSm(this._ctx, Game.PIXELS_PER_MOVE, 100, false),
-            new WallObstacleLg(this._ctx, Game.PIXELS_PER_MOVE, 120, false)
+            new WallObstacleLg(this._ctx, Game.PIXELS_PER_MOVE, 120, false),
+            new Goal(this._ctx, Game.PIXELS_PER_MOVE, 225, false)
         ];
 
         window.addEventListener("keydown", (evt) => this.handleKeyDown(evt), true);
@@ -57,9 +58,17 @@
                 o.moveObstacle();
                 o.render();
 
-                //Evaluate if player has hit an obstacle.
-                if (this._player.isTouchingObstacle(o)) {
-                    this._player.hasHitObstacle = true;
+                if (o instanceof Goal) {
+                    //Evaluate if player has reached the end goal.
+                    if (this._player.hasPassedObstacle(o)) {
+                        this._player.hasReachedGoal = true;
+                    }
+                }
+                else {
+                    //Evaluate if player has hit an obstacle.
+                    if (this._player.isTouchingObstacle(o)) {
+                        this._player.hasHitObstacle = true;
+                    }
                 }
             }
         }
@@ -68,6 +77,12 @@
         if (this._player.hasHitObstacle) {
             this.stop();
             alert('Game Over');
+        }
+
+        //Check to see if the player has reached the goal.
+        if (this._player.hasReachedGoal) {
+            this.stop();
+            alert('Level complete!');
         }
         
         //Increment current time unit.
@@ -124,6 +139,7 @@ class Player extends RenderableItem {
     private _normalY: number;
     private _isJumping: boolean;
     private _hasHitObstacle: boolean;
+    private _hasReachedGoal: boolean;
 
     public constructor(ctx: CanvasRenderingContext2D, pixelsPerMove: number) {
         //Calculate starting X,Y coordinates. All players start visible, toward the left bottom of the screen.
@@ -141,6 +157,14 @@ class Player extends RenderableItem {
 
     public set hasHitObstacle(value: boolean) {
         this._hasHitObstacle = value;
+    }
+
+    public get hasReachedGoal(): boolean {
+        return this._hasReachedGoal;
+    }
+
+    public set hasReachedGoal(value: boolean) {
+        this._hasReachedGoal = value;
     }
 
     public render(): void {
@@ -177,6 +201,16 @@ class Player extends RenderableItem {
         }
 
         return isTouching;
+    }
+
+    public hasPassedObstacle(obstacle: Obstacle): boolean {
+        let hasPassed: boolean = false;
+
+        if (this.X_Right >= obstacle.X_Left) {
+            hasPassed = true;
+        }
+
+        return hasPassed;
     }
 }
 
@@ -271,5 +305,20 @@ class WallObstacleSm extends WallObstacle {
 
     public constructor(ctx: CanvasRenderingContext2D, pixelsPerMove: number, order: number, isTop: boolean) {
         super(ctx, pixelsPerMove, WallObstacleSm.WALL_WIDTH, WallObstacleSm.WALL_HEIGHT, WallObstacleSm.WALL_COLOR, order, isTop);
+    }
+}
+
+class Goal extends Obstacle {
+    private static GOAL_WIDTH: number = 50;
+    private static GOAL_HEIGHT: number = 100;
+    private static GOAL_COLOR: string = "green";
+
+    public constructor(ctx: CanvasRenderingContext2D, pixelsPerMove: number, order: number, isTop: boolean) {
+        super(ctx, pixelsPerMove, Goal.GOAL_WIDTH, Goal.GOAL_HEIGHT, order, isTop);
+    }
+
+    public render(): void {
+        this._ctx.fillStyle = Goal.GOAL_COLOR;
+        this._ctx.fillRect(this._x, this._y, this._w, this._h);
     }
 }
