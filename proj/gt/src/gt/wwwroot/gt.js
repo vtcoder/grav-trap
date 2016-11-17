@@ -6,9 +6,11 @@ var __extends = (this && this.__extends) || function (d, b) {
 var Game = (function () {
     function Game(canvas) {
         var _this = this;
+        this._gamePlayStarted = false;
         this._canvas = canvas;
         this._ctx = this._canvas.getContext("2d");
         this._currentTimeUnit = 0;
+        this._startScreen = new StartScreen(this._ctx, Game.PIXELS_PER_MOVE);
         this._player = new Player(this._ctx, Game.PIXELS_PER_MOVE);
         //TODO move the array of obstacles to a 'Level' object, or something to capture a given layout of obstacles. It could also have a bg image for each level etc.
         this._obstacles = [
@@ -26,13 +28,21 @@ var Game = (function () {
         window.addEventListener("keyup", function (evt) { return _this.handleKeyUp(evt); }, true);
     }
     Game.prototype.handleKeyDown = function (evt) {
-        if (evt.keyCode == 38) {
-            this._player.startJump();
+        if (this._gamePlayStarted) {
+            if (evt.keyCode == 38) {
+                this._player.startJump();
+            }
         }
     };
     Game.prototype.handleKeyUp = function (evt) {
-        if (evt.keyCode == 38) {
-            this._player.endJump();
+        if (this._gamePlayStarted) {
+            if (evt.keyCode == 38) {
+                this._player.endJump();
+            }
+        }
+        else {
+            this._gamePlayStarted = true;
+            this._start();
         }
     };
     Game.prototype.handleTimeUnitElapse = function () {
@@ -75,6 +85,9 @@ var Game = (function () {
         this._currentTimeUnit++;
     };
     Game.prototype.start = function () {
+        this._startScreen.render();
+    };
+    Game.prototype._start = function () {
         var _this = this;
         //Perform initial renderings (before we start moving the screen).
         this._player.render();
@@ -130,6 +143,36 @@ var RenderableItem = (function () {
     });
     return RenderableItem;
 }());
+var StartScreen = (function (_super) {
+    __extends(StartScreen, _super);
+    function StartScreen(ctx, pixelsPerMove) {
+        //Determine X,Y coordinates for start screen        
+        var wBuf = 90;
+        var hBuf = 60;
+        var x = wBuf;
+        var y = hBuf;
+        var w = ctx.canvas.width - (wBuf * 2);
+        var h = ctx.canvas.height - (hBuf * 2);
+        _super.call(this, ctx, pixelsPerMove, x, y, w, h);
+    }
+    StartScreen.prototype.render = function () {
+        //Render background.
+        this._ctx.fillStyle = StartScreen.START_SCREEN_BG_COLOR;
+        this._ctx.fillRect(this._x, this._y, this._w, this._h);
+        //Render title.
+        this._ctx.font = "72pt Tahoma";
+        this._ctx.fillStyle = StartScreen.START_SCREEN_FG_COLOR;
+        this._ctx.fillText("Gravity Trap", this._x + 60, this._y + 100);
+        //Render start instructions.
+        this._ctx.font = "32pt Tahoma";
+        this._ctx.fillStyle = StartScreen.START_SCREEN_FG2_COLOR;
+        this._ctx.fillText("Press Up Arrow To Start", this._x + 90, this._y + 200);
+    };
+    StartScreen.START_SCREEN_BG_COLOR = "purple";
+    StartScreen.START_SCREEN_FG_COLOR = "black";
+    StartScreen.START_SCREEN_FG2_COLOR = "lightblue";
+    return StartScreen;
+}(RenderableItem));
 var Player = (function (_super) {
     __extends(Player, _super);
     function Player(ctx, pixelsPerMove) {

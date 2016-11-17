@@ -3,17 +3,22 @@
     private static MILLISEC_PER_MOVE: number = 50;
     private static MILLISEC_GAME_TIMEOUT: number = 50;
 
+    private _gamePlayStarted: boolean = false;
     private _canvas: HTMLCanvasElement;
     private _ctx: CanvasRenderingContext2D;
     private _timerId: any;
     private _currentTimeUnit: number;
-    private _player: Player;
+
+    private _startScreen: StartScreen;
+    private _player: Player;    
     private _obstacles: Array<Obstacle>;
 
     public constructor(canvas: HTMLCanvasElement) {
         this._canvas = canvas;
         this._ctx = this._canvas.getContext("2d");
         this._currentTimeUnit = 0;
+
+        this._startScreen = new StartScreen(this._ctx, Game.PIXELS_PER_MOVE);
         this._player = new Player(this._ctx, Game.PIXELS_PER_MOVE);
         //TODO move the array of obstacles to a 'Level' object, or something to capture a given layout of obstacles. It could also have a bg image for each level etc.
         this._obstacles = [
@@ -33,14 +38,21 @@
     }
 
     protected handleKeyDown(evt): void {
-        if (evt.keyCode == 38) {
-            this._player.startJump();
+        if (this._gamePlayStarted) {
+            if (evt.keyCode == 38) {
+                this._player.startJump();
+            }
         }
     }
 
     protected handleKeyUp(evt): void {
-        if (evt.keyCode == 38) {
-            this._player.endJump();
+        if (this._gamePlayStarted) {
+            if (evt.keyCode == 38) {
+                this._player.endJump();
+            }
+        } else {
+            this._gamePlayStarted = true;
+            this._start();
         }
     }
 
@@ -90,6 +102,10 @@
     }
 
     public start(): void {
+        this._startScreen.render();
+    }
+
+    private _start(): void {
         //Perform initial renderings (before we start moving the screen).
         this._player.render();
 
@@ -127,6 +143,40 @@ abstract class RenderableItem {
     public get H(): number { return this._h; }
 
     public abstract render();
+}
+
+class StartScreen extends RenderableItem {
+    private static START_SCREEN_BG_COLOR: string = "purple";
+    private static START_SCREEN_FG_COLOR: string = "black";
+    private static START_SCREEN_FG2_COLOR: string = "lightblue";
+
+    public constructor(ctx: CanvasRenderingContext2D, pixelsPerMove: number) {
+        //Determine X,Y coordinates for start screen        
+        let wBuf: number = 90;
+        let hBuf: number = 60
+        let x: number = wBuf;
+        let y: number = hBuf;
+        let w: number = ctx.canvas.width - (wBuf * 2);
+        let h: number = ctx.canvas.height - (hBuf * 2);
+
+        super(ctx, pixelsPerMove, x, y, w, h);
+    }
+
+    public render(): void {
+        //Render background.
+        this._ctx.fillStyle = StartScreen.START_SCREEN_BG_COLOR;
+        this._ctx.fillRect(this._x, this._y, this._w, this._h);
+
+        //Render title.
+        this._ctx.font = "72pt Tahoma";
+        this._ctx.fillStyle = StartScreen.START_SCREEN_FG_COLOR;
+        this._ctx.fillText("Gravity Trap", this._x + 60, this._y + 100);
+
+        //Render start instructions.
+        this._ctx.font = "32pt Tahoma";
+        this._ctx.fillStyle = StartScreen.START_SCREEN_FG2_COLOR;
+        this._ctx.fillText("Press Up Arrow To Start", this._x + 90, this._y + 200);
+    }
 }
 
 class Player extends RenderableItem {
